@@ -45,7 +45,7 @@ def triangulate(vertices):
     elif n<3:
         raise ValueError('not enough vertices')
     else:
-        print "facet has %d vertices" % n
+        #print "facet has %d vertices" % n
         facets=[]
         for i in range(0,n-2):
             facet=[vertices[0],vertices[i+1],vertices[i+2]]
@@ -53,17 +53,17 @@ def triangulate(vertices):
         return facets
 
 def triangulate1(vertices):
-    print "triangulate!"
+    #print "triangulate!"
     n=len(vertices)
     if(n==3):
         return vertices
     elif n<3:
         raise ValueError('not enough vertices')
     else:
-        print "facet has %d vertices" % n
+        #print "facet has %d vertices" % n
         facets=[]
         for i in range(0,n-2):
-            print "i = %d" % i
+            #print "i = %d" % i
             if i == 0:
                 facet=[vertices[0],vertices[1],vertices[2]]
             else:
@@ -74,7 +74,7 @@ def triangulate1(vertices):
                     facet[1]=facet[2]
                     facet[2]=vertices[2+i/2]
             facets.append(facet[:])
-            print '[%s]' % ', '.join(map(str, facet))
+            #print '[%s]' % ', '.join(map(str, facet))
         return facets
 
 #STL Writer
@@ -94,7 +94,7 @@ class STL_Writer:
 
     def _write(self, facet):
         self.count += 1
-        print "add facet %d" % self.count
+        #print "add facet %d" % self.count
         n=normal(facet[0],facet[1],facet[2])
         data = [
             n[0], n[1], n[2],
@@ -108,8 +108,8 @@ class STL_Writer:
 
     def add_facet(self, facet):
         if len(facet) == 3:
-            print "add_facet"
-            print '[%s]' % ', '.join(map(str, facet))
+            #print "add_facet"
+            #print '[%s]' % ', '.join(map(str, facet))
             self._write(facet)
             
         elif len(facet) > 3:
@@ -119,7 +119,7 @@ class STL_Writer:
             raise ValueError('wrong number of vertices')
 
     def add_facets(self, facets):
-        print "add %d facets" % len(facets)
+        #print "add %d facets" % len(facets)
 
         for facet in facets:
             self.add_facet(facet)

@@ -16,7 +16,7 @@ def districtnames(folder):
     for i, file_ in enumerate(files):
         fp = open(file_,"r")
         first_line = next(fp)
-        names.append(first_line)
+        names.append(unicode(first_line))
         fp.close()
 
     with open('district_names.csv','w') as f:
