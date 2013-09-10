@@ -48,9 +48,33 @@ def triangulate(vertices):
         print "facet has %d vertices" % n
         facets=[]
         for i in range(0,n-2):
-            print "i= %d" % i
             facet=[vertices[0],vertices[i+1],vertices[i+2]]
             facets.append(facet)
+        return facets
+
+def triangulate1(vertices):
+    print "triangulate!"
+    n=len(vertices)
+    if(n==3):
+        return vertices
+    elif n<3:
+        raise ValueError('not enough vertices')
+    else:
+        print "facet has %d vertices" % n
+        facets=[]
+        for i in range(0,n-2):
+            print "i = %d" % i
+            if i == 0:
+                facet=[vertices[0],vertices[1],vertices[2]]
+            else:
+                if ((i % 2)==1) :
+                    facet[1]=facet[0]
+                    facet[0]=vertices[n-(i+1)/2]
+                else :
+                    facet[1]=facet[2]
+                    facet[2]=vertices[2+i/2]
+            facets.append(facet[:])
+            print '[%s]' % ', '.join(map(str, facet))
         return facets
 
 #STL Writer
@@ -84,16 +108,19 @@ class STL_Writer:
 
     def add_facet(self, facet):
         if len(facet) == 3:
+            print "add_facet"
+            print '[%s]' % ', '.join(map(str, facet))
             self._write(facet)
-            #print '[%s]' % ', '.join(map(str, facet))
+            
         elif len(facet) > 3:
-            facets = triangulate(facet)
+            facets = triangulate1(facet)
             self.add_facets(facets)
         else:
             raise ValueError('wrong number of vertices')
 
     def add_facets(self, facets):
         print "add %d facets" % len(facets)
+
         for facet in facets:
             self.add_facet(facet)
 
@@ -115,8 +142,38 @@ class STL_Writer:
             self.add_facet([bottom[len(bottom)-1],bottom[0],top[0],top[len(bottom)-1]])
                           
             self.add_facet(top)
-    
 
+ASCII_FACET = """facet normal {n[0]:.4f} {n[1]:.4f} {n[2]:.4f}
+outer loop
+vertex {face[0][0]:.4f} {face[0][1]:.4f} {face[0][2]:.4f}
+vertex {face[1][0]:.4f} {face[1][1]:.4f} {face[1][2]:.4f}
+vertex {face[2][0]:.4f} {face[2][1]:.4f} {face[2][2]:.4f}
+endloop
+endfacet
+"""
+
+BINARY_HEADER ="80sI"
+BINARY_FACET = "12fH"
+
+class ASCII_STL_Writer(STL_Writer):
+    """ Export 3D objects build of 3 or 4 vertices as ASCII STL file.
+    """
+    def __init__(self, stream):
+        self.fp = stream
+        self._write_header()
+
+    def _write(self, face):
+        print "----- ASCII write facet ------"
+        print '[%s]' % ', '.join(map(str, face))
+        self.fp.write(ASCII_FACET.format(n=normal(face[0],face[1],face[2]),face=face))
+
+    def _write_header(self):
+        self.fp.write("solid python\n")
+
+    def close(self):
+        self.fp.write("endsolid python\n")
+
+ 
 #functions to create some polygons
 def polygon(s):
     v1=[0,0,0]
@@ -136,14 +193,26 @@ def polygon2(s,m):
 
 
 #example
-with open('test.stl', 'wb') as doc:
+def example():
+    with open('test.stl', 'wb') as doc:
         writer = STL_Writer(doc)
         #writer.add_faces(polygon(20))
         bottom=polygon(20)
-        writer.extrude(bottom,20)
+        writer.extrude(bottom,5)
         hole=polygon2(5,5)
         #vertices have to be in reverse order for a hole
         hole.reverse()
-        writer.extrude(hole,20)
+        writer.extrude(hole,5)
         writer.close()
-        
+
+def example2():
+    with open('test2.stl', 'wb') as doc:
+        writer = ASCII_STL_Writer(doc)
+        #writer.add_faces(polygon(20))
+        bottom=polygon(20)
+        writer.extrude(bottom,5)
+        hole=polygon2(5,5)
+        #vertices have to be in reverse order for a hole
+        hole.reverse()
+        writer.extrude(hole,5)
+        writer.close()
