@@ -4,6 +4,7 @@ from os import listdir
 from os.path import isfile, join
 import imp
 import re
+import csv
 STLWriter = imp.load_source('STLWriter', '../STLWriter/STLWriter.py')
 
 def length(point):
@@ -35,6 +36,13 @@ def relationship(poly1,poly2):
                 yInclude = -1     
 
     return [xOverlap,yOverlap,xInclude,yInclude]
+
+def include(poly1,poly2):
+    xInclude = 0 #1 if poly1 includes poly2, -1 if poly2 includes poly1
+    yInclude = 0 #1 if poly1 includes poly2, -1 if poly2 includes poly1
+  
+
+    return [xOverlap,yOverlap,xInclude,yInclude]
     
 
 class Polygon:
@@ -56,6 +64,12 @@ class Polygon:
         y_values = self._getY()
         self.center = [sum(x_values)/len(x_values),sum(y_values)/len(y_values),0]
         self.edges = [min(x_values),max(x_values),min(y_values),max(y_values)]
+
+    def clean(self):
+        #remove duplicates
+        for p in self.points:
+            while(self.points.count(p)>1):
+                self.points.remove(p)
 
     def _getX(self):
         return [point[0] for point in self.points]
@@ -119,6 +133,10 @@ class District:
         if polygon_id == None:
             polygon_id = len(self.polygons)-1
         self.polygons[polygon_id].addVertex(vertex)
+
+    def clean(self):
+        for poly in self.polygons:
+            poly.clean()
 
     def write(self, Writer):
         print "write district: %s" % self.name
@@ -202,7 +220,7 @@ def importDistricts(folder, groundheight = 0):
         # read name from file's first line
         first_line = next(fp)
         random.seed()
-        district = District(name=first_line, height=10+random.randint(0,5))
+        district = District(name=first_line, height=10+random.randint(1,3))
         # next(fp)
         
         i = 0
@@ -215,7 +233,7 @@ def importDistricts(folder, groundheight = 0):
 
         p = re.compile('[0-9]+')
 
-        print("District's name: %s" % district.name);
+        #print("District's name: %s" % district.name);
         # iterate lines
         for idx, line in enumerate(fp):
 
@@ -246,9 +264,10 @@ def importDistricts(folder, groundheight = 0):
                                         ], None);
 
 
-        print("Number of Vertices: %d" % len(district.polygons[0].points));
+        #print("Number of Vertices: %d" % len(district.polygons[0].points));
         for polygon in district.polygons:
             polygon.calculateEdges()
+            polygon.clean()
 
         districts.append(district)
         fp.close()
@@ -258,40 +277,60 @@ def importDistricts(folder, groundheight = 0):
 
 #test code
 
-folder = "../poly"
-groundheight=2
-districts = importDistricts(folder,groundheight)
-freq=400
-width=0.5
-with open('test.stl', 'wb') as stl:
-    writer = STLWriter.STL_Writer(stl)
-    count = 0
-    xmin=0
-    xmax=0
-    ymin=0
-    ymax=0
-    for district in districts:
-        #district.simplify(freq)
-        #district.addBorder(width)
-        #district.write(writer)
+#test(folder = "../wels", freq=1,groundheight=2,width=0.5)
 
-        for poly in district.polygons:
-            if(poly.edges[0]<xmin):
-                xmin=poly.edges[0]
-            if(poly.edges[1]>xmax):
-                xmax=poly.edges[1]
-            if(poly.edges[2]<ymin):
-                xmin=poly.edges[2]
-            if(poly.edges[3]>ymax):
-                xmin=poly.edges[3]
-    print "xmin = %f" % xmin
-    print "xmax = %f" % xmax
-    print "ymin = %f" % ymin
-    print "ymax = %f" % ymax
-    floor = [[xmin,ymin,0],[xmax,ymin,0],[xmax,ymax,0],[xmin,ymax,0]]
-    writer.extrude(floor,groundheight)
-    writer.close()
-#print "%d districts" % len(districts)
-#for district in districts:
-#    print "%s" % district.name
+def test(folder = "../poly", freq=400,groundheight=2,width=0.5):
+    districts = importDistricts(folder,groundheight)
+    with open('test.stl', 'wb') as stl:
+        writer = STLWriter.STL_Writer(stl)
+        count = 0
+        xmin=0
+        xmax=0
+        ymin=0
+        ymax=0
+        for district in districts:
+            district.simplify(freq)
+            #district.addBorder(width)
+            district.write(writer)
 
+            for poly in district.polygons:
+                if(xmin==xmax and ymin==ymax):
+                    xmin=poly.edges[0]
+                    xmax=poly.edges[1]
+                    ymin=poly.edges[2]
+                    ymax=poly.edges[3]
+                if(poly.edges[0]<xmin):
+                    xmin=poly.edges[0]
+                if(poly.edges[1]>xmax):
+                    xmax=poly.edges[1]
+                if(poly.edges[2]<ymin):
+                    ymin=poly.edges[2]
+                if(poly.edges[3]>ymax):
+                    ymax=poly.edges[3]
+        print "xmin = %f" % xmin
+        print "xmax = %f" % xmax
+        print "ymin = %f" % ymin
+        print "ymax = %f" % ymax
+        #floor = [[xmin,ymin,0],[xmax,ymin,0],[xmax,ymax,0],[xmin,ymax,0]]
+        #writer.extrude(floor,groundheight)
+        writer.close()
+    #print "%d districts" % len(districts)
+    #for district in districts:
+    #    print "%s" % district.name
+
+
+def writenames():
+    folder = "../poly"
+    districts = importDistricts(folder,1)
+    files = [
+        join(folder,f) for f in listdir(folder)
+            if isfile(join(folder,f))
+            and f.endswith(".poly")
+        ];
+        
+    with open('districts.csv','w') as csvfile:
+        writer = csv.writer(csvfile, delimiter=';',quotechar=';', quoting=csv.QUOTE_MINIMAL)
+        i=0
+        for district in districts:
+            writer.writerow([files[i],len(district.polygons),district.name])
+            i+=1

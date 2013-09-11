@@ -37,45 +37,108 @@ def normal(v1,v2,v3):
         return [n[0]/absolut,n[1]/absolut,n[2]/absolut]
 
 #simple function to create sets of three vertices
-def triangulate(vertices):
-    print "triangulate!"
-    n=len(vertices)
-    if(n==3):
-        return vertices
-    elif n<3:
-        raise ValueError('not enough vertices')
-    else:
-        #print "facet has %d vertices" % n
-        facets=[]
-        for i in range(0,n-2):
-            facet=[vertices[0],vertices[i+1],vertices[i+2]]
-            facets.append(facet)
-        return facets
+##def triangulate(vertices):
+##    print "triangulate!"
+##    n=len(vertices)
+##    if(n==3):
+##        return vertices
+##    elif n<3:
+##        raise ValueError('not enough vertices')
+##    else:
+##        #print "facet has %d vertices" % n
+##        facets=[]
+##        for i in range(0,n-2):
+##            facet=[vertices[0],vertices[i+1],vertices[i+2]]
+##            facets.append(facet)
+##        return facets
+##
+##def triangulate1(vertices):
+##    #print "triangulate!"
+##    n=len(vertices)
+##    if(n==3):
+##        return vertices
+##    elif n<3:
+##        raise ValueError('not enough vertices')
+##    else:
+##        #print "facet has %d vertices" % n
+##        facets=[]
+##        for i in range(0,n-2):
+##            #print "i = %d" % i
+##            if i == 0:
+##                facet=[vertices[0],vertices[1],vertices[2]]
+##            else:
+##                if ((i % 2)==1) :
+##                    facet[1]=facet[0]
+##                    facet[0]=vertices[n-(i+1)/2]
+##                else :
+##                    facet[1]=facet[2]
+##                    facet[2]=vertices[2+i/2]
+##            facets.append(facet[:])
+##            #print '[%s]' % ', '.join(map(str, facet))
+##        return facets
 
-def triangulate1(vertices):
-    #print "triangulate!"
-    n=len(vertices)
-    if(n==3):
-        return vertices
-    elif n<3:
-        raise ValueError('not enough vertices')
-    else:
-        #print "facet has %d vertices" % n
-        facets=[]
-        for i in range(0,n-2):
-            #print "i = %d" % i
-            if i == 0:
-                facet=[vertices[0],vertices[1],vertices[2]]
-            else:
-                if ((i % 2)==1) :
-                    facet[1]=facet[0]
-                    facet[0]=vertices[n-(i+1)/2]
-                else :
-                    facet[1]=facet[2]
-                    facet[2]=vertices[2+i/2]
-            facets.append(facet[:])
-            #print '[%s]' % ', '.join(map(str, facet))
-        return facets
+def triangulate(poly):
+    """
+    triangulates poly and returns a list of triangles
+    poly: list of points that form an anticlockwise polygon (self-intersecting polygons won't work, results are... undefined)
+    """
+    triangles = []
+    remaining = poly[:]
+    # while the poly still needs clipping
+    while len(remaining) > 2:
+        print("doing %d" % len(remaining))
+        # rotate the list:
+        # this stops the starting point from getting stale which sometimes a "fan" of polys, which often leads to poor convexisation
+        remaining = remaining[1:]+remaining[:1]
+        # clip the ear, store it
+        ear, remaining = _get_ear(remaining)
+        if ear != []:
+            triangles.append(ear)
+    # return stored triangles
+    return triangles
+
+def _get_ear(poly):
+    count = len(poly)
+    # not even a poly
+    if count < 3:
+        return [], []
+    # only a triangle anyway
+    if count == 3:
+        return poly, []
+
+    # start checking points
+    for i in range(count):
+        ia = (i-1) % count
+        ib = i
+        ic = (i+1) % count
+        a = poly[ia]
+        b = poly[ib]
+        c = poly[ic]
+        # is point b an outer corner?
+        if _is_corner(a,b,c):
+            # are there any other points inside triangle abc?
+            valid = True
+            for j in range(count):
+                if not(j in (ia,ib,ic)):
+                    p = poly[j]
+                    if _point_in_triangle(p,a,b,c):
+                        valid = False
+            # if no such point found, abc must be an "ear"
+            if valid:
+                remaining = []
+                for j in range(count):
+                    if j != ib:
+                        remaining.append(poly[j])
+                # return the ear, and what's left of the polygon after the ear is clipped
+                return [a,b,c], remaining
+            
+    # no ear was found, so something is wrong with the given poly (not anticlockwise? self-intersects?)
+    return [], []
+
+def _is_corner(a,b,c):
+    # returns if point b is an outer corner
+    return not(is_clockwise([a,b,c]))
+
 
 #STL Writer
 class STL_Writer:
@@ -113,7 +176,7 @@ class STL_Writer:
             self._write(facet)
             
         elif len(facet) > 3:
-            facets = triangulate1(facet)
+            facets = triangulate(facet)
             self.add_facets(facets)
         else:
             raise ValueError('wrong number of vertices')
